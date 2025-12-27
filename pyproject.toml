@@ -1,0 +1,15 @@
+[project]
+name = "esa-project"
+version = "0.1.0"
+description = "nl2sql agent for earth observation data"
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "colorlog>=6.10.1",
+    "dotenv>=0.9.9",
+    "folium>=0.20.0",
+    "openai-agents[litellm]>=0.6.4",
+    "pandas>=2.3.3",
+    "psycopg2-binary>=2.9.11",
+    "shapely>=2.1.2",
+]
