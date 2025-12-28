@@ -5,6 +5,7 @@ AI Agent Runner - Execute agents with customizable streaming and input modes
 import argparse
 import asyncio
 
+from agents.exceptions import MaxTurnsExceeded
 from agents import set_tracing_disabled
 set_tracing_disabled(disabled=True)
 
@@ -72,4 +73,7 @@ if __name__ == "__main__":
         asyncio.run(main())
         
     except KeyboardInterrupt:
-        logger.error(f"Interrupted by user.")
+        logger.error("Interrupted by user.")
+    
+    except MaxTurnsExceeded:
+        logger.error("Max turns (10) exceeded.")

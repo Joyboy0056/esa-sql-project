@@ -31,7 +31,10 @@ executor_handoff = handoff(
 collector = Agent(
     name="Galileo",
     instructions=prompt_with_handoff_instructions(collector_prompt),
-    tools=[getMetadata, retrieveQueries],
+    tools=[
+        getMetadata, 
+        # retrieveQueries
+    ],
     handoffs=[executor_handoff,],
     handoff_description="Agente che esplora il db per raccogliere dati utili per scrivere una query sqlite",
     model=config.MODEL,
