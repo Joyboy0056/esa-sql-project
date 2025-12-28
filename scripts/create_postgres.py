@@ -1,4 +1,4 @@
-# USAGE: python -m scripts.update_postgres --help
+# USAGE: python -m scripts.create_postgres --help
 from argparse import ArgumentParser
 
 from src.ingestion.loader import STACLoader

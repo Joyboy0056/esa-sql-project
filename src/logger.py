@@ -12,7 +12,7 @@ def get_logger(
         *, 
         name: str="default_logger", 
         logfile: str=f"logs/default_logger_{fmt_time}.log",
-        level: logging._Level=logging.DEBUG
+        level=logging.DEBUG
     ):
 
     logger = logging.getLogger(name)
