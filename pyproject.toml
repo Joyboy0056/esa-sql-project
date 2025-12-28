@@ -11,5 +11,7 @@ dependencies = [
     "openai-agents[litellm]>=0.6.4",
     "pandas>=2.3.3",
     "psycopg2-binary>=2.9.11",
+    "qdrant-client>=1.16.2",
+    "sentence-transformers>=5.2.0",
     "shapely>=2.1.2",
 ]

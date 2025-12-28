@@ -18,7 +18,9 @@ class Config:
         'user': os.getenv('POSTGRES_USER'),
         'password': os.getenv('POSTGRES_PASSWORD')
     }
-    default_bbox = [11.798012, 42.514816, 12.401342, 42.741971]
+    home_bbox = [11.798012, 42.514816, 12.401342, 42.741971]
+    italy_bbox = [6.6, 36.6, 18.5, 47.1]
+    default_bbox = italy_bbox
 
     # llms config
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

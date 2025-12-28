@@ -39,5 +39,5 @@ python -m scripts.create_postgres --bbox -180 -50 -109 25 --start 1997-07-14 --e
  ## PostgreSQL Agent
  Chat with the agent by:
  ```python
- python -m cli.py
+ python -m scripts.cli
  ```
