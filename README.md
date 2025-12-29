@@ -29,7 +29,7 @@ and connect to the cointainerized `PostgresDB`.
 ```python
 python -m scripts.create_postgres --bbox -180 -50 -109 25 --start 1997-07-14 --end 2025-12-26
 ```
- #### or this one ,if you just want to update data up today
+ #### or this one, if you just want to update data up today
  ```python
  python -m scripts.create_postgres --update
  ```
