@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from agents import OpenAIChatCompletionsModel, AsyncOpenAI
 from agents.extensions.models.litellm_model import LitellmModel
-
+from qdrant_client import QdrantClient
 from dotenv import load_dotenv
 load_dotenv("build/.env")
 
@@ -11,7 +11,9 @@ from src.logger import logger
 
 @dataclass
 class Config:
-    db_config = {
+    """Dataclass for singleton configurations"""
+
+    DB_CONFIG = {
         'host': 'localhost',
         'port': 5433,
         'database': os.getenv('POSTGRES_DB'),
@@ -20,7 +22,9 @@ class Config:
     }
     home_bbox = [11.798012, 42.514816, 12.401342, 42.741971]
     italy_bbox = [6.6, 36.6, 18.5, 47.1]
-    default_bbox = italy_bbox
+    DEFAULT_BOX = italy_bbox
+
+    QCLIENT = QdrantClient(url="localhost:6333")
 
     # llms config
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")

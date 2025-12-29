@@ -51,7 +51,7 @@ def get_tables(*, schema: str='public') -> list[str]:
     """Aux function to get all the tables in the schema"""
     conn, cursor = None, None
     try:
-        conn: connection = connect(**config.db_config)
+        conn: connection = connect(**config.DB_CONFIG)
         cursor = conn.cursor()
 
         # query to get all the tables
