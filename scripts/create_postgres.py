@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 from src.ingestion.loader import STACLoader
 from build.config import config
 
-def main(bbox: list=config.default_bbox):
+def main(bbox: list=config.DEFAULT_BOX):
     """Main function for db creation script, with default bbox in Umbria/Lazio"""
 
     parser = ArgumentParser(description='Load ESA Sentinel data')

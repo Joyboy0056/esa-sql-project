@@ -27,7 +27,7 @@ class STACLoader():
                       If None, reads from environment variables
         """
         if db_config is None:
-            self.db_config = config.db_config
+            self.db_config = config.DB_CONFIG
         else:
             self.db_config = db_config
     
