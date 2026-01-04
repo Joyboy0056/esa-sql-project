@@ -138,8 +138,6 @@ def retrieveQueries(param: RetrieveQueriesParam):
         top_k=param.top_k
     )
 
-    logger.error(retrieved_queries)
-
     results = "\n".join(
         f"\nNL key: {item["nl"]}\nSQL value: {item["sql"]}\nScore: {item["score"]:.4f}"
         for item in retrieved_queries

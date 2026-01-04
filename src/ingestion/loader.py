@@ -299,16 +299,24 @@ class STACLoader():
                 'unique_tiles': row[4],
                 'platforms': row[5]
             }
+
+            cursor.execute("""
+                SELECT COUNT(asset_id)
+                  FROM scene_assets             
+            """)
+            row = cursor.fetchone()
+            stats['total_assets'] = row[0]
             
             print("\n" + "="*60)
             print("DATABASE STATISTICS")
             print("="*60)
             logger.info(f"Total scenes:      {stats['total_scenes']:,}")
+            logger.info(f"Total assets:      {stats['total_assets']:,}")
             logger.info(f"Date range:        {stats['earliest']} to {stats['latest']}")
             logger.info(f"Avg cloud cover:   {stats['avg_cloud_cover']:.1f}%" if stats['avg_cloud_cover'] else "N/A")
             logger.info(f"Unique tiles:      {stats['unique_tiles']}")
             logger.info(f"Platforms:         {stats['platforms']}")
-            logger.info("="*60 + "\n")
+            print("="*60 + "\n")
 
             return stats
         

@@ -151,6 +151,13 @@ FROM sentinel_scenes s
 JOIN scene_assets sa ON s.scene_id = sa.scene_id
 WHERE sa.asset_key = 'thumbnail'
 ...
+
+-- Select all the satellite images that are visible
+...
+FROM scene_assets
+WHERE asset_type = 'image/jpeg'
+OR asset_key = 'thumbnail'
+...
 ```
 
 **Then in your response:**
