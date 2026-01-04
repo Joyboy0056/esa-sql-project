@@ -2,29 +2,22 @@ services:
   postgres:
     image: postgis/postgis:16-3.4
     container_name: eo_catalog_db
-    env_file: build/.env
+    env_file:
+      - ./build/.env
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5433:5432" # "local:docker"
+      - "5433:5432" # local:docker
     volumes:
-      - ./data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
       - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
     restart: unless-stopped
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
   pgadmin:
     image: dpage/pgadmin4
     container_name: eo_pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@eo.local}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    env_file:
+      - ./build/.env
     ports:
       - "5050:80"
     depends_on:
@@ -35,8 +28,14 @@ services:
     image: qdrant/qdrant:latest
     container_name: eo_qdrant
     ports:
-      - "6333:6333"  # HTTP API
-      - "6334:6334"  # gRPC
+      - "6333:6333"
+      - "6334:6334"
     volumes:
-      - ./qdrant_data:/qdrant/storage
+      - ./data/qdrant:/qdrant/storage
     restart: unless-stopped
+
+# to reset postgres:
+# docker compose down
+# rm -rf ./data/postgres
+# mkdir -p ./data/postgres
+# docker compose up -d

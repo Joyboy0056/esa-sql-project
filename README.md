@@ -9,7 +9,7 @@ POSTGRES_DB="eo_catalog"
 POSTGRES_USER="<your_user>"
 POSTGRES_PASSWORD=<your_password>
 
-PGADMIN_EMAIL="admin@eo.local"
+PGADMIN_EMAIL="admin@example.com"
 PGADMIN_PASSWORD="admin"
 
 ANTHROPIC_API_KEY="your_anthropic_api_key"
@@ -24,14 +24,37 @@ docker-compose up -d
 and connect to the cointainerized `PostgresDB`.
 > I reccomend the official `PostgreSQL` and `Docker` extensions by Microsoft.
 
-### Finally:
-#### If you still have to populate the database, run this script (*e.g.*)
+## Data Ingestion 
+This `EO-Agent` certainly needs databases to run.
+
+### PostgreSQL database
+Start populate the *sql-database* by running this script (*e.g.*)
 ```python
 python -m scripts.create_postgres --bbox -180 -50 -109 25 --start 1997-07-14 --end 2025-12-26
 ```
- #### or this one, if you just want to update data up today
+> ***Note:*** choose the geographical coordinates of the bounding box as you prefer.
+
+or this one, if you just want to update data up today
  ```python
  python -m scripts.create_postgres --update
+ ```
+
+
+### RAG vector database
+Start create the *vector store* by running 
+```python
+python -m scripts.qdrant_ingestion --create
+```
+
+ In order to extend the *sql knowledge* of the agent, you shall add new queries to the file `queries_example.sql` from the *sql module*, then run from the scripts module:
+
+ ```python
+python -m scripts.qdrant_ingestion --update
+ ```
+
+ You can also see the available collection with some stats by:
+  ```python
+python -m scripts.qdrant_ingestion --view
  ```
 
  ---
@@ -40,4 +63,8 @@ python -m scripts.create_postgres --bbox -180 -50 -109 25 --start 1997-07-14 --e
  Chat with the agent by:
  ```python
  python -m scripts.cli
+ ```
+ or run the *chainlit* app:
+ ```bash
+ python
  ```

@@ -1,4 +1,4 @@
-"""SQL script with DDL for the tables"""
+--SQL script with DDL for the schema tables
 
 CREATE TABLE sentinel_scenes (
     -- Identificatori
