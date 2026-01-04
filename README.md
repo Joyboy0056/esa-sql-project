@@ -34,32 +34,6 @@
   > - Platform and instrument selection
  >  - Processing level comparisons
 
-## Example Queries
-
-**Basic Spatial:**
-1. Find scenes covering Rome
-2. Show me the clearest images of Milan from the last 3 months
-
-**Quality & Filtering:**
-
-3. Find scenes with less than 5% cloud cover over Florence
-4. Which month had the clearest skies over Rome in 2024?
-
-**Advanced Spatial (PostGIS):**
-
-5. Find scenes along the Tuscan coast with less than 5% clouds
-6. All scenes within 50km of the Rome-Florence path
-7. Show me the geodesic distance between Rome and Palermo
-
-**Image Downloads:**
-
-8. Give me the download link for the best RGB image of Vesuvius
-
-**Analytics:**
-
-9. Compare cloud cover between Rome and Milan in summer 2025
-10. Show cloud cover trends over Rome month by month in 2025
-
 ---
 
 ## Prerequisites
