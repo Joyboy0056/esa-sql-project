@@ -6,7 +6,7 @@ from build.config import config
 if __name__=="__main__":
     refiner = DBRefiner()
     try:
-        conn = connect(**config.db_config)
+        conn = connect(**config.DB_CONFIG)
         refiner.fill_comments(conn)
     finally:
         conn.close()
