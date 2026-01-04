@@ -30,13 +30,13 @@ This `EO-Agent` certainly needs databases to run.
 ### PostgreSQL database
 Start populate the *sql-database* by running this script (*e.g.*)
 ```python
-python -m scripts.create_postgres --bbox -180 -50 -109 25 --start 1997-07-14 --end 2025-12-26
+python -m scripts.postgres_ingestion --bbox -180 -50 -109 25 --start 1997-07-14 --end 2025-12-26
 ```
 > ***Note:*** choose the geographical coordinates of the bounding box as you prefer.
 
 or this one, if you just want to update data up today
  ```python
- python -m scripts.create_postgres --update
+ python -m scripts.postgres_ingestion --update
  ```
 
 
