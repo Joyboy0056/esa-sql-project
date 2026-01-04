@@ -1,7 +1,7 @@
 from agents import Agent, handoff, ModelSettings
 from agents.extensions.handoff_prompt import prompt_with_handoff_instructions
 
-from src.sql_agent.prompts import executor_prompt, collector_prompt
+from src.sql_agent.prompts import EXECUTOR_PROMPT, COLLECTOR_PROMPT
 from src.sql_agent.tools import (
     getMetadata,
     retrieveQueries,
@@ -13,9 +13,9 @@ from build.config import config
 # Sub agent
 executor = Agent(
     name="Executor",
-    instructions=executor_prompt,
+    instructions=EXECUTOR_PROMPT,
     tools=[executeQuery],
-    handoff_description="Agente che esegue query sqlite su db",
+    handoff_description="Agent that runs PostgreSQL query on database",
     model=config.MODEL,
     model_settings=ModelSettings(tool_choice="required") # always execute queries
 )
@@ -30,12 +30,12 @@ executor_handoff = handoff(
 # Agent
 collector = Agent(
     name="Galileo",
-    instructions=prompt_with_handoff_instructions(collector_prompt),
+    instructions=prompt_with_handoff_instructions(COLLECTOR_PROMPT),
     tools=[
+        retrieveQueries,
         getMetadata, 
-        # retrieveQueries
     ],
     handoffs=[executor_handoff,],
-    handoff_description="Agente che esplora il db per raccogliere dati utili per scrivere una query sqlite",
+    handoff_description="Agent that explores db and collects useful data for writing a SQL query",
     model=config.MODEL,
 )
