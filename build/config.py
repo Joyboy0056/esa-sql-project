@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from agents import OpenAIChatCompletionsModel, AsyncOpenAI
 from agents.extensions.models.litellm_model import LitellmModel
 from qdrant_client import QdrantClient
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 load_dotenv("build/.env")
 
@@ -25,6 +26,10 @@ class Config:
     DEFAULT_BOX = italy_bbox
 
     QCLIENT = QdrantClient(url="localhost:6333")
+    
+    EMBEDDING_MODEL = SentenceTransformer("all-MiniLM-L6-v2")
+    EMBEDDING_CLIENT = None
+    EMBEDDING_DIM = 384
 
     # llms config
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
