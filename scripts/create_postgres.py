@@ -28,11 +28,16 @@ def main(bbox: list=config.DEFAULT_BOX):
         loader.update_data(bbox=args.bbox)
 
     else:
-        loader.load_region(
-            bbox=args.bbox,
-            datetime_range=f"{args.start}T00:00:00Z/{args.end}T23:59:59Z",
-            limit=args.limit
-        )
+        if not (args.start or args.end):
+            print("You must specify start and end date.")
+            return
+        
+        else:
+            loader.load_region(
+                bbox=args.bbox,
+                datetime_range=f"{args.start}T00:00:00Z/{args.end}T23:59:59Z",
+                limit=args.limit
+            )
     loader.print_stats()
     
 
