@@ -63,5 +63,3 @@
 4. **Download**: "Give me the RGB image link for best Vesuvius shot" (practical use)
 5. **Analytics**: "Compare cloud cover between coastal and inland areas" (insights)
 6. **Grand finale**: "What's the geodesic distance Rome to Palermo vs straight line?" (geometric magic)
-
-Quale set vuoi testare prima? 🚀
