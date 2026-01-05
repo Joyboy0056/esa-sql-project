@@ -10,6 +10,7 @@ from typing import List, Dict, Tuple
 from datetime import datetime, timedelta, timezone
 
 from build.config import config
+from src.logger import logger
 
 
 class STACLoader():
@@ -26,7 +27,7 @@ class STACLoader():
                       If None, reads from environment variables
         """
         if db_config is None:
-            self.db_config = config.db_config
+            self.db_config = config.DB_CONFIG
         else:
             self.db_config = db_config
     
@@ -49,10 +50,10 @@ class STACLoader():
         Returns:
             List of STAC feature dicts
         """
-        print(f"Fetching from STAC API...")
-        print(f"  Collection: {collection}")
-        print(f"  BBox: {bbox}")
-        print(f"  Date range: {datetime_range}")
+        logger.info(f"Fetching from STAC API...")
+        logger.info(f"  Collection: {collection}")
+        logger.info(f"  BBox: {bbox}")
+        logger.info(f"  Date range: {datetime_range}")
         
         response = requests.post(
             self.STAC_API,
@@ -62,14 +63,14 @@ class STACLoader():
                 "datetime": datetime_range,
                 "limit": limit
             },
-            timeout=30
+            timeout=300
         )
         
         response.raise_for_status()
         data = response.json()
         features = data.get('features', [])
         
-        print(f"✓ Fetched {len(features)} scenes")
+        logger.info(f"✓ Fetched {len(features)} scenes")
         return features
     
     def parse_feature(self, feature: Dict) -> Tuple:
@@ -143,10 +144,10 @@ class STACLoader():
             Number of rows inserted
         """
         if not features:
-            print("⚠ No features to insert")
+            logger.warning("⚠ No features to insert")
             return 0
         
-        print(f"Inserting {len(features)} scenes into database...")
+        logger.info(f"Inserting {len(features)} scenes into database...")
         
         conn: connection = psycopg2.connect(**self.db_config)
         cursor = conn.cursor()
@@ -178,13 +179,13 @@ class STACLoader():
             
             inserted = cursor.rowcount
             conn.commit()
-            print(f"✓ Inserted {inserted} scenes ({len(features) - inserted} duplicates skipped)")
+            logger.info(f"✓ Inserted {inserted} scenes ({len(features) - inserted} duplicates skipped)")
             
             return inserted
             
         except Exception as e:
             conn.rollback()
-            print(f"✗ Error inserting data: {e}")
+            logger.error(f"✗ Error inserting data: {e}")
             raise
             
         finally:
@@ -230,7 +231,7 @@ class STACLoader():
         cursor.close()
         conn.close()
         
-        print(f"✓ Inserted {inserted} assets")
+        logger.info(f"✓ Inserted {inserted} assets")
         return inserted
     
     def load_region(
@@ -298,15 +299,23 @@ class STACLoader():
                 'unique_tiles': row[4],
                 'platforms': row[5]
             }
+
+            cursor.execute("""
+                SELECT COUNT(asset_id)
+                  FROM scene_assets             
+            """)
+            row = cursor.fetchone()
+            stats['total_assets'] = row[0]
             
             print("\n" + "="*60)
             print("DATABASE STATISTICS")
             print("="*60)
-            print(f"Total scenes:      {stats['total_scenes']:,}")
-            print(f"Date range:        {stats['earliest']} to {stats['latest']}")
-            print(f"Avg cloud cover:   {stats['avg_cloud_cover']:.1f}%" if stats['avg_cloud_cover'] else "N/A")
-            print(f"Unique tiles:      {stats['unique_tiles']}")
-            print(f"Platforms:         {stats['platforms']}")
+            logger.info(f"Total scenes:      {stats['total_scenes']:,}")
+            logger.info(f"Total assets:      {stats['total_assets']:,}")
+            logger.info(f"Date range:        {stats['earliest']} to {stats['latest']}")
+            logger.info(f"Avg cloud cover:   {stats['avg_cloud_cover']:.1f}%" if stats['avg_cloud_cover'] else "N/A")
+            logger.info(f"Unique tiles:      {stats['unique_tiles']}")
+            logger.info(f"Platforms:         {stats['platforms']}")
             print("="*60 + "\n")
 
             return stats

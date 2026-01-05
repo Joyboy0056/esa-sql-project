@@ -1,7 +1,10 @@
 import folium
 
+from build.config import config
+from src.logger import logger
+
 # Bbox
-bbox = [11.798012, 42.514816, 12.401342, 42.741971]
+bbox = config.default_bbox
 min_lon, min_lat, max_lon, max_lat = bbox
 
 # Centro mappa
@@ -22,4 +25,4 @@ folium.Rectangle(
 
 # Salva
 m.save('test/bbox_map.html')
-print("✓ Mappa salvata: bbox_map.html")
+logger.info("✓ Mappa salvata: bbox_map.html")

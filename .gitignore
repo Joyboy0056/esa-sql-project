@@ -12,3 +12,7 @@ wheels/
 data/
 .env
 *.pyc
+logs
+*.json
+/qdrant_data
+.chainlit

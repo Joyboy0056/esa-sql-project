@@ -1,6 +1,8 @@
 # Enrich DB metadata
 from psycopg2.extensions import connection
 
+from src.logger import logger
+
 class DBRefiner:
     """Curate and enhance database schema and metadata"""
     
@@ -39,8 +41,23 @@ class DBRefiner:
                 'created': 'Product creation timestamp',
                 'updated': 'Product update timestamp',
                 'ingestion_time': 'Database ingestion timestamp'
-            }
+            },
+
+        'scene_assets': {
+            'asset_id': 'Unique asset identifier (auto-increment)',
+            'scene_id': 'Reference to parent scene',
+            'asset_key': 'Asset identifier (B02_10m, TCI_10m, thumbnail, etc)',
+            'asset_type': 'MIME type (image/tiff, image/jpeg, application/xml)',
+            'href': 'Direct download URL for this asset',
+            'roles': 'Asset roles (data, visual, thumbnail, metadata)',
+            'eo_bands': 'Spectral bands contained (blue, green, red, nir, etc)',
+            'gsd': 'Ground Sample Distance in meters (10, 20, or 60)',
+            'file_size': 'File size in bytes',
+            'proj_shape': 'Image dimensions [height, width] in pixels',
+            'title': 'Human-readable asset title',
+            'description': 'Detailed asset description'
         }
+    }
 
     def fill_comments(self, conn: connection):
         """Add COMMENT descriptions to table columns in PostgresDB"""
@@ -53,8 +70,7 @@ class DBRefiner:
                 """, (desc,))
         
         conn.commit()
-        print(f"✓ Added comments to {len(self.comments['sentinel_scenes'])} columns")
-
+        logger.info(f"✓ Comments added to {sum(len(c) for c in self.comments.values())} columns")
 
     def add_indices(self):
         pass

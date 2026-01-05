@@ -1,10 +1,10 @@
-# USAGE: python -m scripts.update_postgres --help
+# USAGE: python -m scripts.postgres_ingestion --help
 from argparse import ArgumentParser
 
 from src.ingestion.loader import STACLoader
 from build.config import config
 
-def main(bbox: list=config.default_bbox):
+def main(bbox: list=config.DEFAULT_BOX):
     """Main function for db creation script, with default bbox in Umbria/Lazio"""
 
     parser = ArgumentParser(description='Load ESA Sentinel data')
@@ -28,11 +28,16 @@ def main(bbox: list=config.default_bbox):
         loader.update_data(bbox=args.bbox)
 
     else:
-        loader.load_region(
-            bbox=args.bbox,
-            datetime_range=f"{args.start}T00:00:00Z/{args.end}T23:59:59Z",
-            limit=args.limit
-        )
+        if not (args.start or args.end):
+            print("You must specify start and end date.")
+            return
+        
+        else:
+            loader.load_region(
+                bbox=args.bbox,
+                datetime_range=f"{args.start}T00:00:00Z/{args.end}T23:59:59Z",
+                limit=args.limit
+            )
     loader.print_stats()
     
 
