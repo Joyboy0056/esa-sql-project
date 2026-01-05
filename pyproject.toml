@@ -5,6 +5,7 @@ description = "nl2sql agent for earth observation data"
 readme = "README.md"
 requires-python = "==3.12.*"
 dependencies = [
+    "chainlit>=2.9.4",
     "colorlog>=6.10.1",
     "dotenv>=0.9.9",
     "folium>=0.20.0",

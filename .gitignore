@@ -15,3 +15,4 @@ data/
 logs
 *.json
 /qdrant_data
+.chainlit

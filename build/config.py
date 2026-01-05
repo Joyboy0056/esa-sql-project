@@ -48,7 +48,8 @@ class Config:
 
     elif ANTHROPIC_API_KEY:
         MODEL = LitellmModel(
-            model="claude-3-5-haiku-20241022", 
+            model="claude-haiku-4-5-20251001", 
+            # model="claude-sonnet-4-5-20250929",
             api_key=ANTHROPIC_API_KEY
             )
         logger.info(f"Anthropic client initialized and model {MODEL.model} set up.")

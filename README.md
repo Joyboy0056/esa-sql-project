@@ -104,5 +104,5 @@ python -m scripts.qdrant_ingestion --view
  ```
  or run the (forthcoming) *chainlit* app:
  ```bash
- python ...
+python -m chainlit run scripts/ui.py -w
  ```
