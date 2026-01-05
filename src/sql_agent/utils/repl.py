@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from typing import Any, Literal, Set
-
-from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
-
-from agents.agent import Agent
-from agents.items import ItemHelpers, TResponseInputItem, HandoffCallItem
-from agents.result import RunResultBase
-from agents.run import Runner
-from agents.stream_events import AgentUpdatedStreamEvent, RawResponsesStreamEvent, RunItemStreamEvent
-from agents.lifecycle import RunHooks
-
 import time
+from dataclasses import dataclass
+from typing import Any, AsyncGenerator, Literal, Set
 
+from agents import Agent, Runner, RunHooks
+from agents.result import RunResultStreaming
+from openai.types.responses.response_text_delta_event import ResponseTextDeltaEvent
+from agents.stream_events import (
+    RawResponsesStreamEvent,
+    RunItemStreamEvent,
+    AgentUpdatedStreamEvent,
+)
+from agents.items import ItemHelpers
+
+
+# ------ COLORS ------
 class bcolors:
     # Colori di base
     BLACK = '\033[30m'
@@ -141,129 +144,254 @@ class bcolors:
         return f"{cls.DARK_GRAY_256}{text}{cls.ENDC}"
 
 
-# Tipo più specifico per le opzioni di input personalizzato
-InputDataMode = Literal["tool", "handoff", "tool_and_handoff", "nothing_else"]
+# ------ TYPES & MODES ------
+InputDataMode = Literal[
+    "tool",
+    "handoff",
+    "tool_and_handoff",
+    "nothing_else",
+]
 
-# Set di comandi di uscita per performance migliori
 EXIT_COMMANDS: Set[str] = {"exit", "quit", "stop", "cl"}
 
+ReplEventType = Literal[
+        "text_delta",
+        "message",
+        "tool_call",
+        "tool_output",
+        "agent_switch",
+        "final",
+    ]
 
-def should_append_tool_output(mode: InputDataMode) -> bool:
-    """Determina se aggiungere l'output del tool agli input_items."""
-    return mode in {"tool", "tool_and_handoff"}
-
-
-def should_append_handoff_args(mode: InputDataMode) -> bool:
-    """Determina se aggiungere gli argomenti di handoff agli input_items."""
-    return mode in {"handoff", "tool_and_handoff"}
-
-
-async def handle_stream_events(
-    result: RunResultBase, 
-    input_items: list, 
-    mode: InputDataMode
-) -> None:
-    """Gestisce gli eventi di streaming in modo unificato."""
-    async for event in result.stream_events():
-        if isinstance(event, RawResponsesStreamEvent):
-            if isinstance(event.data, ResponseTextDeltaEvent):
-                print(event.data.delta, end="", flush=True)
-                
-        elif isinstance(event, RunItemStreamEvent):
-            if event.item.type == "tool_call_item":
-                print(f"\n{bcolors.DARK_GRAY}{bcolors.BOLD}[tool call: `{event.item.raw_item.name}`({event.item.raw_item.arguments})]{bcolors.ENDC}", flush=True)
-                
-            elif event.item.type == "tool_call_output_item":
-                print(f"\n{bcolors.DARK_GRAY}{bcolors.BOLD}[tool output:\n {str(event.item.output)}]{bcolors.ENDC}", flush=True)
-                if should_append_tool_output(mode):
-                    input_items.append({"role": "assistant", "content": event.item.output})
-                    
-            elif event.item.type == "message_output_item":
-                message = ItemHelpers.text_message_output(event.item)
-                print(message, end="", flush=True)
-                
-            elif event.item.type == "handoff_call_item":
-                print(f"\n{bcolors.BORDEAUX}{bcolors.BOLD}[Agent `{event.item.raw_item.name}` handed off with args: {event.item.raw_item.arguments}]{bcolors.ENDC}")
-                if should_append_handoff_args(mode):
-                    input_items.append({"role": "assistant", "content": event.item.raw_item.arguments})
-                    
-        elif isinstance(event, AgentUpdatedStreamEvent):
-            print(f"\n{bcolors.DARK_GRAY}{bcolors.BOLD}[Agent invoked: `{event.new_agent.name}`]{bcolors.ENDC}", flush=True)
+@dataclass
+class ReplEvent:
+    type: ReplEventType
+    content: str
 
 
-async def run_demo_loop(
-    starting_agent: Agent[Any], 
-    hooks: RunHooks = None, 
-    *, 
-    stream: bool = True, 
-    input_data_custom: InputDataMode = "nothing_else"
-) -> None:
+# ------ AGENT RUNNER ------
+class AgentRunner:
     """
-    Run a simple REPL loop with the given agent.
-
-    This utility allows quick manual testing and debugging of an agent from the
-    command line. Conversation state is preserved across turns. Enter ``exit``
-    or ``quit`` to stop the loop.
-
-    Args:
-        starting_agent: The starting agent to run.
-        hooks: Optional run hooks for lifecycle management.
-        stream: Whether to stream the agent output.
-        input_data_custom: Mode for handling input data from tools and handoffs.
+    Stateful async runner for OpenAI Agents.
     """
-    current_agent = starting_agent
-    input_items = []
-    
-    while True:
-        try:
-            user_input = input(f"\n{bcolors.CYAN}{bcolors.BOLD}User: {bcolors.ENDC}")
-        except (EOFError, KeyboardInterrupt):
-            print()
-            break
-            
-        # Controllo più efficiente per i comandi di uscita
-        if user_input.strip().lower() in EXIT_COMMANDS:
-            break
-            
-        if not user_input.strip():
-            continue
 
-        input_items.append({"role": "user", "content": user_input})
+    def __init__(
+        self,
+        starting_agent: Agent[Any],
+        *,
+        hooks: RunHooks | None = None,
+        input_data_custom: InputDataMode = "nothing_else",
+        enable_cli_prints: bool = True,
+    ):
+        self.agent = starting_agent
+        self.hooks = hooks
+        self.input_items: list[dict] = []
+        self.input_data_custom = input_data_custom
+        self.enable_cli_prints = enable_cli_prints
 
-        if stream:
-            start_time = time.time()
-            
-            result = Runner.run_streamed(
-                starting_agent=current_agent, 
-                input=input_items,
-                hooks=hooks
+    # POLICY METHODS
+    def should_append_tool_output(self) -> bool:
+        return self.input_data_custom in {"tool", "tool_and_handoff"}
+
+    def should_append_handoff_args(self) -> bool:
+        return self.input_data_custom in {"handoff", "tool_and_handoff"}
+
+    # SINGLE TURN (CORE)
+    async def stream_turn(
+        self, user_input: str
+    ) -> AsyncGenerator[ReplEvent, None]:
+
+        self.input_items.append(
+            {"role": "user", "content": user_input}
+        )
+
+        # if self.enable_cli_prints:
+        #     print(
+        #         f"\n{bcolors.CYAN}{bcolors.BOLD}"
+        #         f"User: {bcolors.ENDC}{user_input}"
+        #     )
+
+        start_time = time.time()
+
+        result = Runner.run_streamed(
+            starting_agent=self.agent,
+            input=self.input_items,
+            hooks=self.hooks,
+        )
+
+        async for event in self._handle_stream_events(result):
+            yield event
+
+        # Output finale
+        # if self.enable_cli_prints:
+        #     print(
+        #         f"\n{bcolors.MIDNIGHT_BLUE}{bcolors.BOLD}"
+        #         f"{self.agent.name}: {bcolors.ENDC}"
+        #         f"{result.final_output}"
+        #     )
+
+        self.input_items.append(
+            {"role": "assistant", "content": result.final_output}
+        )
+
+        elapsed = time.time() - start_time
+
+        if self.enable_cli_prints:
+            print(
+                f"\n{bcolors.PURPLE}Elapsed time: "
+                f"{elapsed:.4f} seconds{bcolors.ENDC}"
             )
-            
-            # Gestione unificata degli eventi di streaming
-            await handle_stream_events(result, input_items, input_data_custom)
-            
-            print()  # Newline dopo gli eventi
-            
-            # Display dell'output dell'agente
-            print(f"\n{bcolors.MIDNIGHT_BLUE}{bcolors.BOLD}{current_agent.name}: {bcolors.ENDC}{result.final_output}")
-            
-            # Timing info
-            elapsed_time = time.time() - start_time
-            print(f"\n{bcolors.PURPLE}Elapsed time: {elapsed_time:.4f} seconds{bcolors.ENDC}")
-            
-            # Debug info
-            print(f"\n{bcolors.DARK_GRAY}TEST INPUT ITEM: \n{input_items}{bcolors.ENDC}")
-            
+            print(
+                f"\n{bcolors.DARK_GRAY}LOG INPUT ITEMs:\n"
+                f"{self.input_items}{bcolors.ENDC}"
+            )
+
+        yield ReplEvent(
+            type="final",
+            content=result.final_output or "",
+        )
+
+    # STREAM EVENT HANDLER
+    async def _handle_stream_events(
+        self, result: RunResultStreaming
+    ) -> AsyncGenerator[ReplEvent, None]:
+
+        async for event in result.stream_events():
+
+            # TEXT STREAM
+            if isinstance(event, RawResponsesStreamEvent):
+                if isinstance(event.data, ResponseTextDeltaEvent):
+                    if self.enable_cli_prints:
+                        print(event.data.delta, end="", flush=True)
+
+                    yield ReplEvent(
+                        type="text_delta",
+                        content=event.data.delta,
+                    )
+
+            # RUN ITEMS
+            elif isinstance(event, RunItemStreamEvent):
+                item = event.item
+
+                if item.type == "tool_call_item":
+                    msg = (
+                        f"[tool call: `{item.raw_item.name}`"
+                        f"({item.raw_item.arguments})]"
+                    )
+
+                    if self.enable_cli_prints:
+                        print(
+                            f"\n{bcolors.DARK_GRAY}{bcolors.BOLD}"
+                            f"{msg}{bcolors.ENDC}",
+                            flush=True,
+                        )
+
+                    yield ReplEvent("tool_call", msg)
+
+                elif item.type == "tool_call_output_item":
+                    output = str(item.output)
+
+                    if self.enable_cli_prints:
+                        print(
+                            f"\n{bcolors.DARK_GRAY}{bcolors.BOLD}"
+                            f"[tool output:\n {output}]"
+                            f"{bcolors.ENDC}",
+                            flush=True,
+                        )
+
+                    if self.should_append_tool_output():
+                        self.input_items.append(
+                            {"role": "assistant", "content": output}
+                        )
+
+                    yield ReplEvent("tool_output", output)
+
+                elif item.type == "message_output_item":
+                    message = ItemHelpers.text_message_output(item)
+
+                    if self.enable_cli_prints:
+                        print(message, end="", flush=True)
+
+                    yield ReplEvent("message", message)
+
+                elif item.type == "handoff_call_item":
+                    msg = (
+                        f"[Agent `{item.raw_item.name}` handed off "
+                        f"with args: {item.raw_item.arguments}]"
+                    )
+
+                    if self.enable_cli_prints:
+                        print(
+                            f"\n{bcolors.BORDEAUX}{bcolors.BOLD}"
+                            f"{msg}{bcolors.ENDC}"
+                        )
+
+                    if self.should_append_handoff_args():
+                        self.input_items.append(
+                            {
+                                "role": "assistant",
+                                "content": item.raw_item.arguments,
+                            }
+                        )
+
+            # AGENT SWITCH
+            elif isinstance(event, AgentUpdatedStreamEvent):
+                if self.enable_cli_prints:
+                    print(
+                        f"\n{bcolors.DARK_GRAY}{bcolors.BOLD}"
+                        f"[Agent invoked: `{event.new_agent.name}`]"
+                        f"{bcolors.ENDC}",
+                        flush=True,
+                    )
+
+                yield ReplEvent(
+                    type="agent_switch",
+                    content=event.new_agent.name,
+                )
+
+    # ------ CLI LOOP ------
+    async def run_demo_loop(self, *, ui: bool=False, user_q: str=None):
+        """
+        Run a simple REPL loop with the given agent.
+
+        This utility allows quick manual testing and debugging of an agent from the
+        command line. Conversation state is preserved across turns. Enter ``exit``
+        or ``quit`` to stop the loop.
+
+        Args:
+            starting_agent: The starting agent to run.
+            hooks: Optional run hooks for lifecycle management.
+            stream: Whether to stream the agent output.
+            input_data_custom: Mode for handling input data from tools and handoffs.
+        """
+
+        input_items = []
+
+        if ui:
+            user_input = user_q
+            input_items.append({"role": "user", "content": user_input})
+
+            # Stream token per token
+            async for delta in self.stream_turn(user_input):
+                yield delta  # Chainlit riceve i token in tempo reale
+
         else:
-            # Modalità non-streaming
-            result = await Runner.run(
-                starting_agent=current_agent, 
-                input=input_items,
-                hooks=hooks
-            )
-            
-            if result.final_output is not None:
-                print(f"\n{bcolors.MIDNIGHT_BLUE}{bcolors.BOLD}{current_agent.name}: {bcolors.ENDC}{result.final_output}")
-        
-        # Aggiunta della risposta dell'assistente agli input_items
-        input_items.append({"role": "assistant", "content": result.final_output})
+            # CLI loop infinito
+            while True:
+                try:
+                    user_input = input(
+                        f"\n{bcolors.CYAN}{bcolors.BOLD}User: {bcolors.ENDC}"
+                    )
+                except (EOFError, KeyboardInterrupt):
+                    print()
+                    break
+
+                if user_input.strip().lower() in EXIT_COMMANDS:
+                    break
+
+                if not user_input.strip():
+                    continue
+
+                input_items.append({"role": "user", "content": user_input})
+                async for _ in self.stream_turn(user_input):
+                    pass
