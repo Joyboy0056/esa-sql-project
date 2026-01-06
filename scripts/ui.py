@@ -17,22 +17,8 @@ async def start():
 
     await cl.Message(
         content="## Hello there! 🌍"
-                "\n\n> Here's Galileo, a specialized `SQL-Agent` for Earth Observation databases. Think of me as your translator between human curiosity and satellite data."
-                # "\n\n **What I do:**"
-                # "\nI help you unlock insights from massive Earth Observation databases by:"
-                # "\n- Understanding what you're looking for (cities, dates, cloud cover, satellite imagery)"
-                # "\n- Discovering similar queries from our knowledge base"
-                # "\n- Exploring the database schema to find exactly the right data"
-                # "\n- Crafting a strategic blueprint for your SQL query"
-
-                # "\n\n **My specialty:**"
-                # "\nI speak fluent PostGIS (geographic data), temporal filtering, and satellite asset management. Whether you need to find cloud-free imagery over a specific region, track changes over time, or analyze Sentinel satellite data—I'm your guide."
-
-                # "\n\n **How it works:**"
-                # "\nYou ask a question in plain English. I investigate the database, learn from similar patterns, and hand off to an Executor Agent who writes and runs your SQL query."
-                # "\nI'm here to make Earth observation data accessible."
-                #    
-                "\n\n#### *What would you like to discover?* 🛰️"
+                "\n\n> Here's Galileo, a specialized `SQL-Agent` for Earth Observation databases. Think of me as your translator between human curiosity and satellite data."  
+                "\n\n#### What'd you like to discover? 🛰️"
     ).send()
 
 
@@ -81,7 +67,7 @@ async def main(message: cl.Message):
         await status_msg.remove()
         
         # Messaggio finale pulito
-        final_msg = cl.Message(content="", author="Galileo")
+        final_msg = cl.Message(content="", author="🛰️ Galileo")
         await final_msg.send()
         
         for char in final_response:
