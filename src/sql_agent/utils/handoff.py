@@ -5,10 +5,11 @@ from src.sql_agent.context import SQLContext
 
 # Handoff aux defs
 class SQLReport(BaseModel):
+    user_query: str
     report: str
 
 async def log_handoff(ctx: RunContextWrapper[SQLContext], input_data: SQLReport):
     # print(f"Handoff call with input: {input_data.report}")
     # print("Input tokens: ", ctx.usage.input_tokens)
     # print("Output tokens: ", ctx.usage.output_tokens)
-    pass
+    ctx.context.user_queries.append(input_data.user_query)

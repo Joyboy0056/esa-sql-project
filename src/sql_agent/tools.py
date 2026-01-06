@@ -4,12 +4,14 @@ from agents import function_tool
 from pandas import DataFrame, read_sql_query
 from psycopg2.extensions import connection
 from psycopg2 import connect
+from agents import RunContextWrapper
 
 from build.config import config
 from sql.utils.metadata_general_query import get_metadata_query
 from sql.utils.load_nl_sql_pairs import queries_dict
 from src.sql_agent.rag.sql_rag import sql_retriever
 from src.logger import logger
+from src.sql_agent.context import SQLContext
 
 
 # Tool `executeQuery`
@@ -24,7 +26,7 @@ class ExecQueryParams(BaseModel):
     )
 
 @function_tool
-def executeQuery(params: ExecQueryParams) -> DataFrame:
+def executeQuery(wrapper: RunContextWrapper[SQLContext], params: ExecQueryParams) -> DataFrame:
     """Tool function for directly execute a query on PostgresDB"""
     try:
         conn: connection = connect(**config.DB_CONFIG)
@@ -34,6 +36,7 @@ def executeQuery(params: ExecQueryParams) -> DataFrame:
             data = cursor.fetchall()
             columns = [col[0] for col in cursor.description]
             df = DataFrame(data=data, columns=columns)
+
             return df.to_string()
 
         elif params.mode == "conn":
@@ -42,7 +45,13 @@ def executeQuery(params: ExecQueryParams) -> DataFrame:
         else:
             return params.mode
     finally:
+        # Update context
+        wrapper.context.append_executed_sql_query(params.query)
+        print()
         logger.debug(f"Executed query:\n{params.query}")
+        print()
+        logger.debug(f"\nSTATE of the CONTEXT:\n\n{wrapper.context}")
+    
         cursor.close()
         conn.close()
 
@@ -72,8 +81,6 @@ def get_tables(*, schema: str='public') -> list[str]:
             conn.close()
             cursor.close()
 
-
-# Tool getMetadata
 class FillTablesMetadata(BaseModel):
     retrieved_tables: list[str]=Field(
         default=None,
@@ -97,11 +104,32 @@ class FillTablesMetadata(BaseModel):
     )
 
 @function_tool
-def getMetadata(params: FillTablesMetadata) -> DataFrame:
-    metadata_res = ""
+def getMetadata(wrapper: RunContextWrapper[SQLContext], params: FillTablesMetadata) -> DataFrame:
+
+    for rkey in params.retrieved_tables:
+        found = False
+
+        for entry in wrapper.context.metadata:
+            if entry.get("table") == rkey:
+                # entry["dsc"] = useful_tables[rkey] #TODO: add dsc of the table if useful
+                found = True
+                break
+        
+        if not found:
+            wrapper.context.metadata(
+                {
+                    "table": rkey,
+                    # "dsc": useful_tables[rkey],
+                    "pk": [],
+                    "fields": []
+                }
+            )
+
     try:
         conn: connection = connect(**config.DB_CONFIG)
         cursor = conn.cursor()
+
+        metadata_res = ""
         
         for table_name in params.retrieved_tables:
             metadata_res += f"\n--- Tabella: {table_name} ---\n"
@@ -114,6 +142,34 @@ def getMetadata(params: FillTablesMetadata) -> DataFrame:
 
             df = DataFrame(data=data, columns=columns)
             metadata_res += df.to_string() + "\n"
+
+            # Update context
+            pk_list = df[df["PRIMARY_KEY"]==True]["COLUMN_NAME"].tolist()
+            field_list = [
+                {
+                    "col": row["COLUMN_NAME"],
+                    "type": row["DATA_TYPE"],
+                    "comment": row["DESCRIPTION"]
+                }
+                for row in df.to_dict("records")
+            ]
+
+            found  = False
+            for entry in wrapper.context.metadata:
+                if entry.get("table") == table_name:
+                    entry["pk"] = pk_list
+                    entry["fields"] = field_list
+                    found = True
+                    break
+            if not found:
+                wrapper.context.metadata.append(
+                    {
+                        "table": table_name,
+                        # "dsc": "", # popolata da get_tables, se chiamato
+                        "pk": pk_list,
+                        "fields": field_list
+                    }
+                )
 
         return metadata_res
             
@@ -131,7 +187,7 @@ class RetrieveQueriesParam(BaseModel):
     top_k: int = Field(default=5, description="How many similar queries to retrieve") 
 
 @function_tool
-def retrieveQueries(param: RetrieveQueriesParam):
+def retrieveQueries(wrapper: RunContextWrapper[SQLContext], param: RetrieveQueriesParam):
     """Vector retrieval system for similar sql query samples"""
     retrieved_queries = sql_retriever.search(
         param.user_query,
@@ -148,6 +204,7 @@ def retrieveQueries(param: RetrieveQueriesParam):
         return "No query retrieved."
     
     else:
+        wrapper.context.append_executed_sql_query(results)
         return results
 
 

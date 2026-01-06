@@ -8,10 +8,12 @@ from src.sql_agent.tools import (
     executeQuery
 )
 from src.sql_agent.utils.handoff import log_handoff, SQLReport
+from src.sql_agent.context import SQLContext
+from src.sql_agent.utils.esa_agent import ESAAgent
 from build.config import config
 
 # Sub agent
-executor = Agent(
+executor = Agent[SQLContext](
     name="Executor",
     instructions=EXECUTOR_PROMPT,
     tools=[executeQuery],
@@ -28,7 +30,7 @@ executor_handoff = handoff(
 )
 
 # Agent
-collector = Agent(
+collector = Agent[SQLContext](
     name="Galileo",
     instructions=prompt_with_handoff_instructions(COLLECTOR_PROMPT),
     tools=[
@@ -39,3 +41,7 @@ collector = Agent(
     handoff_description="Agent that explores db and collects useful data for writing a SQL query",
     model=config.MODEL,
 )
+
+# Context injection
+sql_context = SQLContext()
+collector = ESAAgent(collector, context=sql_context)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Literal, Set
+from typing import Any, AsyncGenerator, Literal, Set, TypeVar
 
 from agents import Agent, Runner, RunHooks
 from agents.result import RunResultStreaming
@@ -13,6 +13,10 @@ from agents.stream_events import (
     AgentUpdatedStreamEvent,
 )
 from agents.items import ItemHelpers
+
+from src.logger import logger
+from src.sql_agent.utils.esa_agent import ESAAgent
+from src.sql_agent.utils.base_context import BaseContext
 
 
 # ------ COLORS ------
@@ -150,7 +154,17 @@ InputDataMode = Literal[
     "handoff",
     "tool_and_handoff",
     "nothing_else",
+    "context"
 ]
+
+Role = Literal[
+    "system",
+    "developer",
+    "user",
+    "assistant"
+]
+
+TContext = TypeVar("TContext", bound=BaseContext)
 
 EXIT_COMMANDS: Set[str] = {"exit", "quit", "stop", "cl"}
 
@@ -172,12 +186,12 @@ class ReplEvent:
 # ------ AGENT RUNNER ------
 class AgentRunner:
     """
-    Stateful async runner for OpenAI Agents.
+    Stateful async runner for OpenAI ESA wrapped Agents.
     """
 
     def __init__(
         self,
-        starting_agent: Agent[Any],
+        starting_agent: ESAAgent | Agent[Any],
         *,
         hooks: RunHooks | None = None,
         input_data_custom: InputDataMode = "nothing_else",
@@ -189,16 +203,32 @@ class AgentRunner:
         self.input_data_custom = input_data_custom
         self.enable_cli_prints = enable_cli_prints
 
+        if getattr(self.agent, "context", None):
+            self.input_data_custom = "context"
+            logger.debug(f"Starting chat with {self.agent.name}")
+            logger.debug(f"Context object instantiated:\n {self.agent.context}")
+
+            # logging system prompt once at turn 0
+            # if self.agent.context._turn == 0:
+            #     system_prompt = self.agent.instructions
+            #     self.input_items.append({"role": "system", "content": system_prompt})
+            #     logger.turn(role="system", content=system_prompt)
+        else:
+            self.input_data_custom = input_data_custom
+
     # POLICY METHODS
-    def should_append_tool_output(self) -> bool:
+    def _should_append_tool_output(self) -> bool:
         return self.input_data_custom in {"tool", "tool_and_handoff"}
 
-    def should_append_handoff_args(self) -> bool:
+    def _should_append_handoff_args(self) -> bool:
         return self.input_data_custom in {"handoff", "tool_and_handoff"}
+    
+    def _should_append_dynamic_context(self) -> bool:
+        return self.input_data_custom in {"context"}
 
     # SINGLE TURN (CORE)
     async def stream_turn(
-        self, user_input: str
+        self, user_input: str, **kwargs
     ) -> AsyncGenerator[ReplEvent, None]:
 
         self.input_items.append(
@@ -216,10 +246,11 @@ class AgentRunner:
         result = Runner.run_streamed(
             starting_agent=self.agent,
             input=self.input_items,
+            context=self.agent.context,
             hooks=self.hooks,
         )
 
-        async for event in self._handle_stream_events(result):
+        async for event in self._handle_stream_events(result, **kwargs):
             yield event
 
         # Output finale
@@ -253,7 +284,7 @@ class AgentRunner:
 
     # STREAM EVENT HANDLER
     async def _handle_stream_events(
-        self, result: RunResultStreaming
+        self, result: RunResultStreaming, **kwargs
     ) -> AsyncGenerator[ReplEvent, None]:
 
         async for event in result.stream_events():
@@ -299,7 +330,7 @@ class AgentRunner:
                             flush=True,
                         )
 
-                    if self.should_append_tool_output():
+                    if self._should_append_tool_output():
                         self.input_items.append(
                             {"role": "assistant", "content": output}
                         )
@@ -311,6 +342,9 @@ class AgentRunner:
 
                     if self.enable_cli_prints:
                         print(message, end="", flush=True)
+
+                    if self.agent.context:
+                        self.agent.context._turn += 1
 
                     yield ReplEvent("message", message)
 
@@ -326,7 +360,7 @@ class AgentRunner:
                             f"{msg}{bcolors.ENDC}"
                         )
 
-                    if self.should_append_handoff_args():
+                    if self._should_append_handoff_args():
                         self.input_items.append(
                             {
                                 "role": "assistant",
@@ -343,6 +377,19 @@ class AgentRunner:
                         f"{bcolors.ENDC}",
                         flush=True,
                     )
+
+                # Update dynamic context - any subclass of BaseContext is handled
+                if self._should_append_dynamic_context and result.current_turn:
+                    ctx: BaseContext = result.context_wrapper.context
+
+                    # Compute delta
+                    delta_dict = ctx.get_delta_for_model(**kwargs)
+
+                    if delta_dict:
+                        content_json = ctx.to_json(delta_dict)
+
+                        self.input_items.append({"role": "developer", "content": content_json})
+                        # logger.turn(role="developer", content=content_json)
 
                 yield ReplEvent(
                     type="agent_switch",
