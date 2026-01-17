@@ -5,7 +5,7 @@ The system generates spatial intersection queries using `ST_Intersects` with cor
 
 <video width="640" height="480" controls>
   <source src="video/rome.mp4" type="video/mp4">
-  Your browser does not support HTML5 videos...
+  Cfr. `video/rome.mp4`
 </video>
 
 <br>
@@ -15,7 +15,7 @@ The system generates spatial intersection queries using `ST_Intersects` with cor
 
 <video width="640" height="480" controls>
   <source src="video/milan.mp4" type="video/mp4">
-  Your browser does not support HTML5 videos...
+    Cfr. `video/milan.mp4`
 </video>
 
 
@@ -27,7 +27,7 @@ The system generates spatial intersection queries using `ST_Intersects` with cor
 
 <video width="640" height="480" controls>
   <source src="video/km50radius.mp4" type="video/mp4">
-  Your browser does not support HTML5 videos...
+    Cfr. `video/km50radius.mp4`
 </video>
 
 <br>
@@ -37,7 +37,7 @@ The system generates spatial intersection queries using `ST_Intersects` with cor
 
 <video width="640" height="480" controls>
   <source src="video/vesuvius.mp4" type="video/mp4">
-  Your browser does not support HTML5 videos...
+  Cfr. `video/vesuvius.mp4`
 </video>
 
 <br>
@@ -47,7 +47,7 @@ The system generates spatial intersection queries using `ST_Intersects` with cor
 
 <video width="640" height="480" controls>
   <source src="video/tuscan_coast.mp4" type="video/mp4">
-  Your browser does not support HTML5 videos...
+  Cfr. `video/tuscan_coast.mp4`
 </video>
 
 <br>
@@ -57,5 +57,5 @@ The system generates spatial intersection queries using `ST_Intersects` with cor
 
 <video width="640" height="480" controls>
   <source src="video/geodesic.mp4" type="video/mp4">
-  Your browser does not support HTML5 videos...
+  Cfr. `video/geodesic.mp4`
 </video>
