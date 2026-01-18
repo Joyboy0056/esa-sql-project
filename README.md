@@ -1,7 +1,7 @@
 # 🛰️ Galileo *for* Earth Observation (EO) Databases 🌍
 
 #### `Galileo` is an AI-agent that performs *nl-2-sql* on ESA EO data.
-> *Cfr.* [demo-videos](demo_offline.md).
+> *Cfr.* [demo-videos](docs/demo_offline.md).
 ---
 
 ## Prerequisites
